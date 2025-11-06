@@ -1,5 +1,7 @@
 #!/bin/bash
 source "$(dirname "$0")/../00_config.sh"
+# Cargar wrapper de gestor de paquetes
+source "$(dirname "$0")/pkg_manager.sh"
 
 GAME_INSTALL_LOG="$LOG_DIR/game_installer.log"
 touch "$GAME_INSTALL_LOG"
@@ -158,22 +160,22 @@ if [ ${#LAUNCHER_ARRAY[@]} -eq 0 ]; then
     echo "No se encontraron lanzadores instalados."
     echo "¿Deseas instalar alguno?"
     select OPTION in "Wine" "Proton-GE" "Lutris" "Cancelar"; do
-        case $OPTION in
+                case $OPTION in
             "Wine")
-                pikman install wine
+                pkg_install wine
                 break
                 ;;
             "Proton-GE")
                 read -p "¿Deseas instalar Steam y Proton-GE? [s/N] " response
                 if [[ $response =~ ^[Ss]$ ]]; then
-                    pikman install steam
+                    pkg_install steam
                     # Llamar al script de setup_launchers para instalar Proton-GE
                     "$(dirname "$0")/setup_launchers.sh" --proton-only
                 fi
                 break
                 ;;
             "Lutris")
-                pikman install lutris
+                pkg_install lutris
                 break
                 ;;
             "Cancelar")
@@ -215,7 +217,7 @@ if [[ $install_more =~ ^[Ss]$ ]]; then
                         break
                         ;;
                     "Wine-Staging")
-                        pikman install wine-staging
+                        pkg_install "wine-staging"
                         break
                         ;;
                     "Cancelar")

@@ -17,6 +17,67 @@ Este es el script principal que le guiará a través de todas las herramientas d
 3. Use "Mantenimiento de Wine" cuando necesite optimizar o hacer backups
 4. Use "Gestionar Launchers" para actualizaciones y configuraciones específicas
 
+## Gestor de paquetes adaptativo (pkg_manager.sh)
+
+Los scripts de este repositorio ahora usan un wrapper central llamado `pkg_manager.sh` para instalar/actualizar/remover paquetes.
+Esto permite que los scripts funcionen correctamente en varias distribuciones y gestores de paquete, preferiendo las herramientas nativas cuando sea posible.
+
+Principales comportamientos:
+
+- Prioridad de gestores:
+   - Si está disponible, `pikman` (PikaOS) será preferido. Según la documentación de PikaOS, `pikman` no requiere usar `sudo` porque maneja internamente la elevación cuando es necesario.
+   - En distribuciones Debian/Ubuntu se usará `apt`.
+   - En Arch y derivadas se intentará `yay`, luego `paru`, y por último `pacman`.
+   - Otros gestores soportados de forma básica: `dnf`.
+
+- Mapas y candidatos de nombre de paquete:
+   - Para cada "paquete genérico" (por ejemplo `heroic`, `wine-ge`, `steam`) el wrapper mantiene una lista de nombres candidatos comunes (p. ej. `heroic-games-launcher-bin`, `heroic-bin`, `heroic`) y selecciona el primero que esté disponible en el repositorio de la máquina.
+   - Esto evita fallos cuando un paquete tiene nombres distintos entre AUR, repositorios oficiales o paquetes personalizados de PikaOS.
+
+- Fallbacks especiales para builds desde releases:
+   - Si no existe un paquete empaquetado para `wine-ge` o `proton-ge`, `pkg_manager.sh` intentará ejecutar los helpers del repositorio (`setup_launchers.sh --wine-only` o `--proton-only`) para descargar e instalar la versión desde las releases (descarga y extracción en rutas locales). Esto permite cubrir instalaciones donde Wine-GE o Proton-GE no están empaquetados pero sí disponibles como binarios en GitHub.
+
+- Ejemplos de funciones expuestas por el wrapper:
+   - `pkg_install <paquete-genérico>`  — instala el paquete usando el gestor detectado
+   - `pkg_remove <paquete-genérico>`   — elimina el paquete
+   - `pkg_update`                      — actualiza el sistema
+   - `pkg_available <nombre>`          — chequea si un paquete existe en los repositorios
+
+- Forzar/Anular nombres:
+   - Si necesitas forzar un nombre concreto (por ejemplo porque PikaOS tiene un paquete con nombre especial), edita `pkg_manager.sh` y añade/ajusta `PKG_CANDIDATES_DEBIAN` o `PKG_CANDIDATES_ARCH` para la entrada correspondiente.
+
+- Mensajes y depuración:
+   - `pkg_manager_info` muestra el gestor detectado y el tipo de distro.
+   - Antes de ejecutar instalaciones masivas, puedes probar con `map_pkg_name <paquete-genérico>` para ver qué nombre concreto elegiría el wrapper en la máquina actual.
+
+Cómo probar el wrapper (en tu Linux o WSL):
+
+```bash
+# cargar el wrapper en la sesión actual
+source ./pkg_manager.sh
+
+# ver el gestor detectado
+pkg_manager_info
+
+# ver qué nombre usaría para 'heroic' o 'steam'
+map_pkg_name heroic
+map_pkg_name steam
+
+# intentar instalar (modo real) — en PikaOS pikman gestionará elevación internamente
+pkg_install steam
+
+# casos especiales: si no existe 'proton-ge' empaquetado, el wrapper intentará ejecutar
+# setup_launchers.sh --proton-only para descargar Proton-GE desde las releases
+pkg_install proton-ge
+```
+
+Notas importantes:
+- En PikaOS no anteponemos `sudo` a `pikman` ya que el propio `pikman` pedirá permisos cuando sea necesario.
+- En otros gestores (apt, pacman, yay, paru, dnf) el wrapper sí usa `sudo` donde es apropiado.
+- Si el método de fallback (descarga de releases) no es deseado, puedes desactivarlo modificando `pkg_manager.sh`.
+
+Si quieres que incluya un pequeño archivo `PKG_MAP_OVERRIDES.md` o ejemplos concretos para PikaOS, puedo generarlo (por ejemplo, mostrar cómo priorizar `heroic-games-launcher-bin` sobre `heroic`).
+
 ## Índice
 1. [Instalación de Juegos](#instalación-de-juegos)
 2. [Configuración de Launchers](#configuración-de-launchers)

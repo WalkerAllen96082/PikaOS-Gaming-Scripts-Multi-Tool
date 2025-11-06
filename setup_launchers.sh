@@ -1,5 +1,7 @@
 #!/bin/bash
 source "$(dirname "$0")/../00_config.sh"
+# Cargar wrapper de gestor de paquetes (pkg_install, pkg_remove, ...)
+source "$(dirname "$0")/pkg_manager.sh"
 
 LAUNCHER_CONFIG_LOG="$LOG_DIR/launcher_config.log"
 touch "$LAUNCHER_CONFIG_LOG"
@@ -103,13 +105,14 @@ install_launcher() {
     local launcher=$1
     case $launcher in
         steam)
-            pikman -S steam
+            pkg_install steam
             ;;
         heroic)
-            pikman -S heroic-games-launcher-bin
+            # 'heroic' se mapea en pkg_manager según la distro (ej. heroic-games-launcher-bin en Arch/AUR)
+            pkg_install heroic
             ;;
         lutris)
-            pikman -S lutris
+            pkg_install lutris
             ;;
         *)
             echo "Launcher no soportado: $launcher"
