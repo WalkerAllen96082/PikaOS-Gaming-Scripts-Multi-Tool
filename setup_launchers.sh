@@ -1,14 +1,11 @@
 #!/bin/bash
-# Cargar configuración global (busca en varias ubicaciones relativas)
-CONFIG_PATH=""
-for p in "$(dirname "${BASH_SOURCE[0]}")/00_config.sh" "$(dirname "${BASH_SOURCE[0]}")/../00_config.sh" "$(pwd)/00_config.sh"; do
-    if [ -f "$p" ]; then CONFIG_PATH="$p"; break; fi
-done
-if [ -n "$CONFIG_PATH" ]; then
-    source "$CONFIG_PATH"
-else
-    echo "Warning: 00_config.sh no encontrado; se usarán valores por defecto (LOG_DIR en el home)"
-fi
+
+# Obtener el directorio del script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+
+# Importar utilidades
+source "$SCRIPT_DIR/tui_utils.sh"
+source "$SCRIPT_DIR/00_config.sh" || log_message "WARNING" "00_config.sh no encontrado; usando valores por defecto"
 # Cargar wrapper de gestor de paquetes (pkg_install, pkg_remove, ...)
 source "$(dirname "${BASH_SOURCE[0]}")/pkg_manager.sh"
 
@@ -23,14 +20,25 @@ setup_proton_ge() {
     mkdir -p "$proton_dir"
     
     # Obtener última versión de Proton-GE
+    show_info "Descarga" "Obteniendo información de la última versión de Proton-GE..."
     local download_url=$(curl -s https://api.github.com/repos/GloriousEggroll/proton-ge-custom/releases/latest | grep "browser_download_url.*tar.gz" | cut -d '"' -f 4)
     
     if [ -n "$download_url" ]; then
         log_message "INFO" "Descargando Proton-GE..." "$LAUNCHER_CONFIG_LOG"
-        wget -q -P /tmp "$download_url"
-        tar xf /tmp/GE-Proton*.tar.gz -C "$proton_dir"
-        rm /tmp/GE-Proton*.tar.gz
+        
+        # Descargar con barra de progreso
+        local temp_file="/tmp/proton-ge.tar.gz"
+        download_with_progress "$download_url" "$temp_file"
+        
+        # Extraer con barra de progreso
+        show_progress "Extrayendo Proton-GE..." "tar xf \"$temp_file\" -C \"$proton_dir\""
+        rm -f "$temp_file"
+        
         log_message "SUCCESS" "Proton-GE instalado correctamente" "$LAUNCHER_CONFIG_LOG"
+        show_success "Instalación Completada" "Proton-GE ha sido instalado correctamente en:\n$proton_dir"
+    else
+        show_error "Error" "No se pudo obtener la última versión de Proton-GE"
+        return 1
     fi
 }
 
@@ -137,14 +145,25 @@ setup_wine_ge() {
     mkdir -p "$wine_dir"
     
     # Obtener última versión de Wine-GE
+    show_info "Descarga" "Obteniendo información de la última versión de Wine-GE..."
     local download_url=$(curl -s https://api.github.com/repos/GloriousEggroll/wine-ge-custom/releases/latest | grep "browser_download_url.*tar.xz" | cut -d '"' -f 4)
     
     if [ -n "$download_url" ]; then
         log_message "INFO" "Descargando Wine-GE..." "$LAUNCHER_CONFIG_LOG"
-        wget -q -P /tmp "$download_url"
-        tar xf /tmp/wine-*.tar.xz -C "$wine_dir"
-        rm /tmp/wine-*.tar.xz
+        
+        # Descargar con barra de progreso
+        local temp_file="/tmp/wine-ge.tar.xz"
+        download_with_progress "$download_url" "$temp_file"
+        
+        # Extraer con barra de progreso
+        show_progress "Extrayendo Wine-GE..." "tar xf \"$temp_file\" -C \"$wine_dir\""
+        rm -f "$temp_file"
+        
         log_message "SUCCESS" "Wine-GE instalado correctamente" "$LAUNCHER_CONFIG_LOG"
+        show_success "Instalación Completada" "Wine-GE ha sido instalado correctamente en:\n$wine_dir"
+    else
+        show_error "Error" "No se pudo obtener la última versión de Wine-GE"
+        return 1
     fi
 }
 
@@ -211,80 +230,114 @@ echo "Este script configurará los launchers con las mejores opciones para gamin
 # Detectar launchers instalados
 detect_launchers
 
-# Menú principal
-while true; do
-    echo -e "\nOpciones disponibles:"
-    echo "1. Instalar/Configurar componentes"
-    echo "2. Configurar un juego"
-    echo "3. Salir"
-    read -p "Seleccione una opción (1-3): " main_option
+# Función principal
+main() {
+    # Inicializar TUI
+    init_tui
+    
+    # Detectar launchers al inicio
+    log_message "INFO" "Detectando launchers instalados..." "$LAUNCHER_CONFIG_LOG"
+    
+    # Menú principal
+    while true; do
+        local main_options=(
+            "1" "🚀 Instalar/Configurar componentes"
+            "2" "🎮 Configurar un juego"
+            "3" "📋 Ver logs"
+            "4" "❌ Salir"
+        )
+        
+        local main_choice=$(show_menu "Configuración de Launchers" "Selecciona una opción:" "${main_options[@]}")
 
-    case $main_option in
+    case $main_choice in
         1)
-            echo -e "\nComponentes disponibles:"
-            echo "1. Proton-GE (Recomendado para Steam)"
-            echo "2. Wine-GE (Recomendado para Heroic/Lutris)"
-            echo "3. Heroic Games Launcher"
-            echo "4. Volver al menú principal"
-            read -p "Seleccione un componente (1-4): " component_option
+            local component_options=(
+                "1" "🚀 Proton-GE (Recomendado para Steam)"
+                "2" "🍷 Wine-GE (Recomendado para Heroic/Lutris)"
+                "3" "🎮 Heroic Games Launcher"
+                "4" "⬅️ Volver al menú principal"
+            )
+            
+            local component_choice=$(show_menu "Componentes" "Selecciona un componente a instalar:" "${component_options[@]}")
 
-            case $component_option in
+            case $component_choice in
                 1)
+                    show_info "Proton-GE" "Se iniciará la instalación de Proton-GE..."
                     setup_proton_ge
                     ;;
                 2)
+                    show_info "Wine-GE" "Se iniciará la instalación de Wine-GE..."
                     setup_wine_ge
                     ;;
                 3)
                     if ! command -v heroic &> /dev/null; then
-                        read -p "Heroic no está instalado. ¿Desea instalarlo? [s/N]: " install_heroic
-                        if [[ $install_heroic =~ ^[Ss]$ ]]; then
-                            install_launcher "heroic"
+                        if confirm "Instalación" "Heroic no está instalado. ¿Deseas instalarlo?"; then
+                            show_progress "Instalando Heroic..." "install_launcher heroic"
+                            show_success "Éxito" "Heroic ha sido instalado correctamente"
                         fi
                     fi
-                    setup_heroic
+                    show_progress "Configurando Heroic..." "setup_heroic"
+                    show_success "Éxito" "Heroic ha sido configurado correctamente"
                     ;;
-                4)
+                4|"")
                     continue
                     ;;
             esac
             ;;
         2)
-            echo -e "\nLaunchers disponibles:"
+            # Array para los launchers disponibles
             declare -a available_launchers=()
+            declare -a launcher_options=()
+            local option_num=1
             
             # Verificar Steam
             if command -v steam &> /dev/null; then
                 available_launchers+=("steam")
-                echo "${#available_launchers[@]}. Steam"
+                launcher_options+=("$option_num" "🎮 Steam (Plataforma principal)")
+                ((option_num++))
             fi
             
             # Verificar Heroic
             if command -v heroic &> /dev/null; then
                 available_launchers+=("heroic")
-                echo "${#available_launchers[@]}. Heroic Games Launcher"
+                launcher_options+=("$option_num" "🏹 Heroic Games Launcher")
+                ((option_num++))
             fi
             
             # Verificar Lutris
             if command -v lutris &> /dev/null; then
                 available_launchers+=("lutris")
-                echo "${#available_launchers[@]}. Lutris"
+                launcher_options+=("$option_num" "🏆 Lutris")
+                ((option_num++))
             fi
             
             if [ ${#available_launchers[@]} -eq 0 ]; then
-                echo "No hay launchers instalados. Instale al menos uno primero."
-                read -p "¿Desea instalar algún launcher ahora? [s/N]: " install_now
-                if [[ $install_now =~ ^[Ss]$ ]]; then
-                    echo "Launchers disponibles para instalar:"
-                    echo "1. Steam"
-                    echo "2. Heroic Games Launcher"
-                    echo "3. Lutris"
-                    read -p "Seleccione un launcher para instalar (1-3): " launcher_choice
-                    case $launcher_choice in
-                        1) install_launcher "steam" ;;
-                        2) install_launcher "heroic" ;;
-                        3) install_launcher "lutris" ;;
-                        *) echo "Opción inválida" ;;
+                show_error "Error" "No hay launchers instalados"
+                if confirm "Instalación" "¿Deseas instalar un launcher ahora?"; then
+                    local install_options=(
+                        "1" "🎮 Steam (Recomendado)"
+                        "2" "🏹 Heroic Games Launcher"
+                        "3" "🏆 Lutris"
+                        "4" "❌ Cancelar"
+                    )
+                    
+                    local install_choice=$(show_menu "Instalación de Launcher" "Selecciona un launcher para instalar:" "${install_options[@]}")
+                    case $install_choice in
+                        1) 
+                            show_progress "Instalando Steam..." "install_launcher steam"
+                            show_success "Éxito" "Steam ha sido instalado correctamente"
+                            ;;
+                        2)
+                            show_progress "Instalando Heroic..." "install_launcher heroic"
+                            show_success "Éxito" "Heroic ha sido instalado correctamente"
+                            ;;
+                        3)
+                            show_progress "Instalando Lutris..." "install_launcher lutris"
+                            show_success "Éxito" "Lutris ha sido instalado correctamente"
+                            ;;
+                        4|"")
+                            continue
+                            ;;
                     esac
                 fi
                 continue
@@ -401,12 +454,49 @@ while true; do
     esac
 done
 
-# 4. Configurar Lutris (si está instalado)
-if command -v lutris &> /dev/null; then
-    read -p "¿Deseas configurar Lutris? [s/N]: " config_lutris
-    if [[ $config_lutris =~ ^[Ss]$ ]]; then
-        lutris --configure
+# Verificar argumentos de línea de comandos
+process_args() {
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --proton-only)
+                setup_proton_ge
+                exit 0
+                ;;
+            --wine-only)
+                setup_wine_ge
+                exit 0
+                ;;
+            --heroic-only)
+                setup_heroic
+                exit 0
+                ;;
+            --help)
+                cat << EOF
+Uso: $0 [OPCIÓN]
+Opciones:
+  --proton-only     Instalar solo Proton-GE
+  --wine-only       Instalar solo Wine-GE
+  --heroic-only     Configurar solo Heroic
+  --help            Mostrar esta ayuda
+EOF
+                exit 0
+                ;;
+            *)
+                show_error "Error" "Opción desconocida: $1\nUsa --help para ver las opciones disponibles"
+                exit 1
+                ;;
+        esac
+        shift
+    done
+}
+
+# Punto de entrada principal
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    # Procesar argumentos si existen
+    if [ $# -gt 0 ]; then
+        process_args "$@"
+    else
+        # Ejecutar menú principal
+        main
     fi
 fi
-
-echo "Configuración completada. Los launchers están listos para usar."

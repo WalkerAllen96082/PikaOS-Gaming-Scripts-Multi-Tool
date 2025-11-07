@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=PikaOS Gaming Tools
+Comment=Herramientas de gaming para PikaOS
+Exec=bash -c 'cd "$(dirname "$(readlink -f "%k")")" && ./pikaos-gaming.sh'
+Icon=applications-games
+Terminal=true
+Type=Application
+Categories=Game;
+Keywords=game;gaming;wine;proton;steam;lutris;heroic;

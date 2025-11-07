@@ -1,15 +1,29 @@
 # Herramientas de Gaming para PikaOS
 
-Este conjunto de herramientas está diseñado para facilitar la instalación y gestión de juegos Windows en PikaOS.
+Este conjunto de herramientas está diseñado para facilitar la instalación y gestión de juegos Windows en PikaOS y otras distribuciones Linux, con una interfaz TUI moderna y un sistema de logs detallado.
+
+## 🎯 Características Principales
+
+- 🖥️ Interfaz TUI moderna con dialog
+- 📊 Barras de progreso para todas las operaciones
+- 📝 Sistema de logs detallado y centralizado
+- 🔄 Soporte multi-distro (PikaOS, Debian, Arch)
+- 🛠️ Gestión avanzada de Wine/Proton
+- 🎮 Integración con múltiples launchers
 
 ## 🚀 Inicio Rápido
 
-Para comenzar, simplemente ejecute:
+Para comenzar, asegúrate de tener los permisos correctos y ejecuta el launcher principal:
+
 ```bash
-./gaming_tools.sh
+# Dar permisos de ejecución
+chmod +x *.sh
+
+# Ejecutar el launcher principal
+./pikaos-gaming.sh
 ```
 
-Este es el script principal que le guiará a través de todas las herramientas disponibles en un menú interactivo y fácil de usar.
+El sistema detectará automáticamente las dependencias necesarias (`dialog`, `pv`) y las instalará si es necesario. La interfaz TUI te guiará a través de todas las herramientas disponibles con menús interactivos y barras de progreso.
 
 ### Orden Recomendado
 1. Ejecute la "Configuración Inicial" primero para preparar su sistema
@@ -77,6 +91,43 @@ Notas importantes:
 - Si el método de fallback (descarga de releases) no es deseado, puedes desactivarlo modificando `pkg_manager.sh`.
 
 Si quieres que incluya un pequeño archivo `PKG_MAP_OVERRIDES.md` o ejemplos concretos para PikaOS, puedo generarlo (por ejemplo, mostrar cómo priorizar `heroic-games-launcher-bin` sobre `heroic`).
+
+## 🎨 Interfaz TUI Moderna
+
+La nueva interfaz TUI proporciona una experiencia de usuario mejorada:
+
+### Características de la TUI
+- 🖥️ Menús navegables con teclado y ratón
+- 📊 Barras de progreso para todas las operaciones
+- 🎨 Soporte para colores y emojis
+- 📝 Diálogos informativos y de error
+- ✅ Confirmaciones visuales
+- 💾 Progreso en tiempo real
+
+### Componentes Interactivos
+1. **Menús Principales**
+   - Navegación con flechas
+   - Atajos numéricos
+   - ESC para cancelar/volver
+   - Indicadores visuales
+
+2. **Barras de Progreso**
+   - Descarga de archivos
+   - Instalación de paquetes
+   - Extracción de archivos
+   - Operaciones largas
+
+3. **Diálogos**
+   - Mensajes de información
+   - Alertas de error
+   - Confirmaciones
+   - Selección múltiple
+
+4. **Visualización de Logs**
+   - Vista en tiempo real
+   - Navegación por categorías
+   - Filtrado de contenido
+   - Gestión de logs
 
 ## Índice
 1. [Instalación de Juegos](#instalación-de-juegos)
@@ -275,10 +326,40 @@ El script te guiará a través del proceso de:
    - Reinstalar componentes básicos
    - Verificar permisos de archivos
 
-### Logs y Diagnóstico
-- Todos los logs se guardan en `logs/`
-- Cada herramienta tiene su propio archivo de log
-- Use `tail -f` para seguimiento en tiempo real
+### Sistema de Logs Detallado
+
+El sistema mantiene logs detallados de todas las operaciones en el directorio `logs/`:
+
+#### Estructura de Logs
+- `pikaos-gaming.log`: Log general del sistema
+- `install_game.log`: Logs específicos de instalación
+- `setup_launchers.log`: Logs de configuración
+- `wine_maintenance.log`: Logs de mantenimiento
+
+#### Información Registrada
+Cada entrada de log incluye:
+- ⏰ Timestamp preciso
+- 📝 Nivel de log (INFO/WARNING/ERROR)
+- 🔍 Script y función que genera el log
+- 💻 Información del sistema (Distro, Kernel, Package Manager)
+- 🔧 Variables de entorno relevantes (WINEPREFIX, etc.)
+- 📚 Stack trace completo para errores
+
+#### Visualización de Logs
+Los logs se pueden ver desde la TUI con estas características:
+- 📋 Vista de logs individuales o combinados
+- 🔍 Navegación fácil entre diferentes logs
+- 🗑️ Opción para limpiar logs antiguos
+- 📊 Formateo para mejor legibilidad
+
+#### Seguimiento en Tiempo Real
+```bash
+# Ver log general
+tail -f logs/pikaos-gaming.log
+
+# Ver log específico
+tail -f logs/install_game.log
+```
 
 ## Consejos y Trucos
 
