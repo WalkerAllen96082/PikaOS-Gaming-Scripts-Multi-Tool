@@ -139,8 +139,8 @@ pkg_update() {
     case "$PKG_MGR" in
         pikman)
             # pikman gestiona privilegios por sí mismo
-            # usar el comando 'pikman update' para actualizar índices y paquetes
-            pikman update || pikman -Syu --noconfirm || pikman -Syu
+            # Usar solo 'pikman update' ya que pikman no usa --noconfirm
+            pikman update
             ;;
         apt)
             sudo apt update && sudo apt -y upgrade
@@ -173,9 +173,9 @@ pkg_install() {
         pikman)
             # pikman acepta -S o install según implementación; intentamos ambas
             if pikman -h 2>&1 | grep -qi "-S"; then
-                pikman -S --noconfirm "$pkg" || pikman -S "$pkg"
+                pikman -S "$pkg"
             else
-                pikman install --noconfirm "$pkg" || pikman install "$pkg"
+                pikman install "$pkg"
             fi
             ;;
         apt)
@@ -242,7 +242,7 @@ pkg_remove() {
 
     case "$PKG_MGR" in
         pikman)
-            pikman -R --noconfirm "$pkg" || pikman -R "$pkg"
+            pikman -R "$pkg"
             ;;
         apt)
             sudo apt remove -y "$pkg"

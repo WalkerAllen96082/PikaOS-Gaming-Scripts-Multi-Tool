@@ -49,14 +49,15 @@ create_batch_shortcuts() {
     done < <(find_executables "$prefix")
 }
 
-# Menú principal
-while true; do
-    echo ""
-    echo "=== Utilidades para Juegos ==="
-    echo "1. Crear acceso directo para un juego"
-    echo "2. Buscar ejecutables en prefijo Wine"
-    echo "3. Crear accesos directos en lote"
-    echo "4. Salir"
+# Función para mostrar el menú de utilidades
+show_utils_menu() {
+    while true; do
+        echo ""
+        echo "=== Utilidades para Juegos ==="
+        echo "1. Crear acceso directo para un juego"
+        echo "2. Buscar ejecutables en prefijo Wine"
+        echo "3. Crear accesos directos en lote"
+        echo "4. Salir"
     
     read -p "Selecciona una opción: " option
     
@@ -96,4 +97,10 @@ while true; do
             echo "Opción inválida"
             ;;
     esac
-done
+    done
+}
+
+# Solo mostrar el menú si el script se ejecuta directamente (no al ser sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    show_utils_menu
+fi
