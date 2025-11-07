@@ -1,5 +1,14 @@
 #!/bin/bash
-source "$(dirname "$0")/../00_config.sh"
+# Cargar configuración global (busca en varias ubicaciones relativas)
+CONFIG_PATH=""
+for p in "$(dirname "${BASH_SOURCE[0]}")/00_config.sh" "$(dirname "${BASH_SOURCE[0]}")/../00_config.sh" "$(pwd)/00_config.sh"; do
+    if [ -f "$p" ]; then CONFIG_PATH="$p"; break; fi
+done
+if [ -n "$CONFIG_PATH" ]; then
+    source "$CONFIG_PATH"
+else
+    echo "Warning: 00_config.sh no encontrado; se usarán valores por defecto (LOG_DIR en el home)"
+fi
 
 GAME_UTILS_LOG="$LOG_DIR/game_utils.log"
 touch "$GAME_UTILS_LOG"

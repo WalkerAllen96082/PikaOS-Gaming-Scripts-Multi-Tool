@@ -16,9 +16,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 declare -A PKG_MAP_DEBIAN=(
     [steam]=steam
     [lutris]=lutris
-    [heroic]=heroic
+    [heroic]=heroic-games-launcher
     [wine]=wine
     ["wine-staging"]=wine-staging
+    [winetricks]=winetricks
+    ["wine-meta"]=wine-meta
+    [protonplus]=protonplus
+    [protontricks]=protontricks
 )
 
 # Para mayor robustez intentamos varias alternativas comunes por paquete
@@ -26,9 +30,13 @@ declare -A PKG_CANDIDATES_DEBIAN=(
     [steam]="steam"
     [lutris]="lutris"
     # PikaOS podría empaquetar 'heroic' de varias maneras; probamos varias opciones
-    [heroic]="heroic heroic-games-launcher heroic-games-launcher-bin"
+    [heroic]="heroic heroic-games-launcher heroic-games-launcher-bin heroic-games-launcher"
     [wine]="wine"
     [wine-staging]="wine-staging"
+    [winetricks]="winetricks"
+    [wine-meta]="wine-meta"
+    [protonplus]="protonplus"
+    [protontricks]="protontricks"
 )
 
 declare -A PKG_MAP_ARCH=(
@@ -131,7 +139,8 @@ pkg_update() {
     case "$PKG_MGR" in
         pikman)
             # pikman gestiona privilegios por sí mismo
-            pikman -Syu --noconfirm || pikman -Syu
+            # usar el comando 'pikman update' para actualizar índices y paquetes
+            pikman update || pikman -Syu --noconfirm || pikman -Syu
             ;;
         apt)
             sudo apt update && sudo apt -y upgrade
@@ -148,10 +157,10 @@ pkg_update() {
         dnf)
             sudo dnf upgrade --refresh -y
             ;;
-        *)
-            echo "[pkg_manager] No se detectó gestor de paquetes. PKG_MGR=")
-            return 1
-            ;;
+            *)
+                echo "[pkg_manager] No se detectó gestor de paquetes. PKG_MGR=$PKG_MGR PKG_TYPE=$PKG_TYPE"
+                return 1
+                ;;
     esac
 }
 
@@ -255,25 +264,25 @@ pkg_remove() {
 }
 
 pkg_available() {
+    # pkg_available expects a concrete package name (not a generic key).
     detect_pkg_manager
-    local pkg_generic="$1"
-    local pkg="$(map_pkg_name "$pkg_generic")"
+    local pkg_name="$1"
 
     case "$PKG_MGR" in
         pikman)
-            pikman search "$pkg" >/dev/null 2>&1 && return 0 || return 1
+            pikman search "$pkg_name" >/dev/null 2>&1 && return 0 || return 1
             ;;
         apt)
-            apt-cache policy "$pkg" | grep -q "Candidate:" && return 0 || return 1
-            *)
-                echo "[pkg_manager] No se detectó gestor de paquetes. PKG_MGR=$PKG_MGR PKG_TYPE=$PKG_TYPE"
-                return 1
-                ;;
+            apt-cache policy "$pkg_name" | grep -q "Candidate:" && return 0 || return 1
+            ;;
+        yay|paru)
+            $PKG_MGR -Ss "^$pkg_name( |$)" >/dev/null 2>&1 && return 0 || return 1
+            ;;
         pacman)
-            pacman -Ss "^$pkg( |$)" >/dev/null 2>&1 && return 0 || return 1
+            pacman -Ss "^$pkg_name( |$)" >/dev/null 2>&1 && return 0 || return 1
             ;;
         dnf)
-            dnf info "$pkg" >/dev/null 2>&1 && return 0 || return 1
+            dnf info "$pkg_name" >/dev/null 2>&1 && return 0 || return 1
             ;;
         *)
             return 1
