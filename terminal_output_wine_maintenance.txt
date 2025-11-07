@@ -1,0 +1,28 @@
+==================================
+🎮 PikaOS Gaming Tools 🎮
+==================================
+Sistema de gestión de juegos completo
+
+Menú Principal:
+1. 🚀 Configuración Inicial (Recomendado primero)
+2. 🎮 Instalar/Configurar Juego
+3. 🛠 Mantenimiento de Wine
+4. ⚙ Gestionar Launchers
+5. ℹ Ver Documentación
+6. ❌ Salir
+
+Seleccione una opción (1-6): 3
+Iniciando herramientas de mantenimiento...
+Instalando dependencias necesarias: pv
+Error: Unable to locate package pv
+exit status 100
+pikaos@pikaos:/media/pikaos/USER/USER DIRECTORIES/Documents/Web/astoras/PikaOS-Gaming-Scripts-Multi-Tool$ 
+
+
+
+
+
+
+
+
+

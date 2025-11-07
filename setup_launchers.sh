@@ -230,6 +230,42 @@ echo "Este script configurará los launchers con las mejores opciones para gamin
 # Detectar launchers instalados
 detect_launchers
 
+# Función para procesar argumentos de línea de comandos
+process_args() {
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --proton-only)
+                setup_proton_ge
+                exit 0
+                ;;
+            --wine-only)
+                setup_wine_ge
+                exit 0
+                ;;
+            --heroic-only)
+                setup_heroic
+                exit 0
+                ;;
+            --help)
+                cat << EOF
+Uso: $0 [OPCIÓN]
+Opciones:
+  --proton-only     Instalar solo Proton-GE
+  --wine-only       Instalar solo Wine-GE
+  --heroic-only     Configurar solo Heroic
+  --help            Mostrar esta ayuda
+EOF
+                exit 0
+                ;;
+            *)
+                show_error "Error" "Opción desconocida: $1\nUsa --help para ver las opciones disponibles"
+                exit 1
+                ;;
+        esac
+        shift
+    done
+}
+
 # Función principal
 main() {
     # Inicializar TUI
@@ -452,41 +488,6 @@ main() {
             echo "Opción inválida"
             ;;
     esac
-done
-
-# Verificar argumentos de línea de comandos
-process_args() {
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            --proton-only)
-                setup_proton_ge
-                exit 0
-                ;;
-            --wine-only)
-                setup_wine_ge
-                exit 0
-                ;;
-            --heroic-only)
-                setup_heroic
-                exit 0
-                ;;
-            --help)
-                cat << EOF
-Uso: $0 [OPCIÓN]
-Opciones:
-  --proton-only     Instalar solo Proton-GE
-  --wine-only       Instalar solo Wine-GE
-  --heroic-only     Configurar solo Heroic
-  --help            Mostrar esta ayuda
-EOF
-                exit 0
-                ;;
-            *)
-                show_error "Error" "Opción desconocida: $1\nUsa --help para ver las opciones disponibles"
-                exit 1
-                ;;
-        esac
-        shift
     done
 }
 

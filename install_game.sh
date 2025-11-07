@@ -193,70 +193,89 @@ main() {
             
             local choice=$(show_menu "Instalación de Launcher" "Selecciona el launcher a instalar:" "${launcher_options[@]}")
             
-            case $choice in
-                1)
-                    show_progress "Instalando Wine..." "pkg_install wine"
-                    show_success "Éxito" "Wine instalado correctamente"
-                    ;;
-                2)
-                    if confirm "Steam" "¿Deseas instalar Steam y Proton-GE?"; then
-                        show_progress "Instalando Steam..." "pkg_install steam"
-                        show_progress "Instalando Proton-GE..." "$SCRIPT_DIR/setup_launchers.sh --proton-only"
-                        show_success "Éxito" "Steam y Proton-GE instalados correctamente"
-                    fi
-                    ;;
-                3)
-                    show_progress "Instalando Lutris..." "pkg_install lutris"
-                    show_success "Éxito" "Lutris instalado correctamente"
-                    ;;
-                4|"")
-                    cleanup_tui
-                    exit 0
-                    ;;
-            esac
-    # Actualizar lista de lanzadores después de la instalación
-    eval "$(get_available_launchers)"
-    IFS=' ' read -ra LAUNCHER_ARRAY <<< "$LAUNCHERS"
-    IFS=' ' read -ra DESCRIPTION_ARRAY <<< "$DESCRIPTIONS"
-fi
-
-echo "Lanzadores disponibles:"
-for i in "${!LAUNCHER_ARRAY[@]}"; do
-    echo "$((i+1))) ${LAUNCHER_ARRAY[i]} (${DESCRIPTION_ARRAY[i]})"
-done
-
-while true; do
-    read -p "Selecciona un lanzador (1-${#LAUNCHER_ARRAY[@]}): " selection
-    if [[ "$selection" =~ ^[0-9]+$ ]] && [ "$selection" -ge 1 ] && [ "$selection" -le "${#LAUNCHER_ARRAY[@]}" ]; then
-        LAUNCHER="${LAUNCHER_ARRAY[$((selection-1))]}"
-        break
-    else
-        echo "Selección inválida"
-    fi
-done
-
-# Preguntar si desea instalar versiones adicionales
-read -p "¿Deseas instalar versiones adicionales del lanzador seleccionado? [s/N] " install_more
-if [[ $install_more =~ ^[Ss]$ ]]; then
-    case $LAUNCHER in
-        "wine")
-            echo "Opciones disponibles para Wine:"
-            select WINE_OPTION in "Wine-GE" "Wine-Staging" "Cancelar"; do
-                case $WINE_OPTION in
-                    "Wine-GE")
-                        "$(dirname "$0")/setup_launchers.sh" --wine-ge-only
-                        break
+                case $choice in
+                    1)
+                        show_progress "Instalando Wine..." "pkg_install wine"
+                        show_success "Éxito" "Wine instalado correctamente"
                         ;;
-                    "Wine-Staging")
-                        pkg_install "wine-staging"
-                        break
+                    2)
+                        if confirm "Steam" "¿Deseas instalar Steam y Proton-GE?"; then
+                            show_progress "Instalando Steam..." "pkg_install steam"
+                            show_progress "Instalando Proton-GE..." "$SCRIPT_DIR/setup_launchers.sh --proton-only"
+                            show_success "Éxito" "Steam y Proton-GE instalados correctamente"
+                        fi
                         ;;
-                    "Cancelar")
-                        break
+                    3)
+                        show_progress "Instalando Lutris..." "pkg_install lutris"
+                        show_success "Éxito" "Lutris instalado correctamente"
+                        ;;
+                    4|"")
+                        cleanup_tui
+                        exit 0
                         ;;
                 esac
-            done
-            ;;
+            # Actualizar lista de lanzadores después de la instalación
+            eval "$(get_available_launchers)"
+            IFS=' ' read -ra LAUNCHER_ARRAY <<< "$LAUNCHERS"
+            IFS=' ' read -ra DESCRIPTION_ARRAY <<< "$DESCRIPTIONS"
+        fi
+    fi
+
+    # Mostrar lanzadores disponibles
+    echo "Lanzadores disponibles:"
+    for i in "${!LAUNCHER_ARRAY[@]}"; do
+        echo "$((i+1))) ${LAUNCHER_ARRAY[i]} (${DESCRIPTION_ARRAY[i]})"
+    done
+
+    while true; do
+        read -p "Selecciona un lanzador (1-${#LAUNCHER_ARRAY[@]}): " selection
+        if [[ "$selection" =~ ^[0-9]+$ ]] && [ "$selection" -ge 1 ] && [ "$selection" -le "${#LAUNCHER_ARRAY[@]}" ]; then
+            LAUNCHER="${LAUNCHER_ARRAY[$((selection-1))]}"
+            break
+        else
+            echo "Selección inválida"
+        fi
+    done
+
+    # Preguntar si desea instalar versiones adicionales
+    read -p "¿Deseas instalar versiones adicionales del lanzador seleccionado? [s/N] " install_more
+    if [[ $install_more =~ ^[Ss]$ ]]; then
+        case $LAUNCHER in
+        "wine")
+            case $LAUNCHER in
+            "wine")
+                echo "Opciones disponibles para Wine:"
+                select WINE_OPTION in "Wine-GE" "Wine-Staging" "Cancelar"; do
+                    case $WINE_OPTION in
+                        "Wine-GE")
+                            "$(dirname "$0")/setup_launchers.sh" --wine-ge-only
+                            break
+                            ;;
+                        "Wine-Staging")
+                            pkg_install "wine-staging"
+                            break
+                            ;;
+                        "Cancelar")
+                            break
+                            ;;
+                    esac
+                done
+                ;;
+            "proton")
+                echo "Opciones disponibles para Proton:"
+                select PROTON_OPTION in "Proton-GE" "Cancelar"; do
+                    case $PROTON_OPTION in
+                        "Proton-GE")
+                            "$(dirname "$0")/setup_launchers.sh" --proton-only
+                            break
+                            ;;
+                        "Cancelar")
+                            break
+                            ;;
+                    esac
+                done
+                ;;
+        esac
         "proton")
             echo "Opciones disponibles para Proton:"
             select PROTON_OPTION in "Proton-GE" "Cancelar"; do
@@ -271,10 +290,10 @@ if [[ $install_more =~ ^[Ss]$ ]]; then
                 esac
             done
             ;;
-    esac
-fi
+        esac
+    fi
 
-# Configurar prefijo
+    # Configurar prefijo
     local prefix_options=(
         "1" "Usar un prefijo existente"
         "2" "Crear nuevo prefijo"

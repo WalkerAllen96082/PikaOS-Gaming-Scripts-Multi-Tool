@@ -4,7 +4,21 @@
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 
 # Importar utilidades comunes
-source "$SCRIPT_DIR/game_utils.sh"
+if [ -f "$SCRIPT_DIR/game_utils.sh" ]; then
+    source "$SCRIPT_DIR/game_utils.sh"
+else
+    echo "Error: No se encuentran las utilidades comunes"
+    exit 1
+fi
+
+# Verificar dependencias críticas
+for dep in dialog pv; do
+    if ! command -v "$dep" >/dev/null 2>&1; then
+        echo "Error: Falta la dependencia $dep"
+        echo "Por favor, instala $dep antes de continuar"
+        exit 1
+    fi
+done
 
 # Función para mostrar el banner
 show_banner() {
@@ -67,22 +81,42 @@ while true; do
     case $choice in
         1) # Configuración Inicial
             echo "Iniciando configuración inicial..."
-            "$SCRIPT_DIR/setup_launchers.sh"
+            if [ -x "$SCRIPT_DIR/setup_launchers.sh" ]; then
+                "$SCRIPT_DIR/setup_launchers.sh"
+            else
+                echo "Error: No se encuentra el script de configuración inicial"
+                sleep 2
+            fi
             ;;
             
         2) # Instalar/Configurar Juego
             echo "Iniciando asistente de instalación de juegos..."
-            "$SCRIPT_DIR/install_game.sh"
+            if [ -x "$SCRIPT_DIR/install_game.sh" ]; then
+                "$SCRIPT_DIR/install_game.sh"
+            else
+                echo "Error: No se encuentra el asistente de instalación"
+                sleep 2
+            fi
             ;;
             
         3) # Mantenimiento de Wine
             echo "Iniciando herramientas de mantenimiento..."
-            "$SCRIPT_DIR/wine_maintenance.sh"
+            if [ -x "$SCRIPT_DIR/wine_maintenance.sh" ]; then
+                "$SCRIPT_DIR/wine_maintenance.sh"
+            else
+                echo "Error: No se encuentran las herramientas de mantenimiento"
+                sleep 2
+            fi
             ;;
             
         4) # Gestionar Launchers
             echo "Iniciando gestión de launchers..."
-            "$SCRIPT_DIR/setup_launchers.sh"
+            if [ -x "$SCRIPT_DIR/setup_launchers.sh" ]; then
+                "$SCRIPT_DIR/setup_launchers.sh"
+            else
+                echo "Error: No se encuentra el script de gestión de launchers"
+                sleep 2
+            fi
             ;;
             
         5) # Ver Documentación

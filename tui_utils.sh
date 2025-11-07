@@ -4,30 +4,50 @@
 
 # Asegurar que tenemos las dependencias necesarias
 check_tui_deps() {
-    local deps=(dialog pv)
-    local missing=()
-    
-    for dep in "${deps[@]}"; do
-        if ! command -v "$dep" >/dev/null 2>&1; then
-            missing+=("$dep")
-        fi
-    done
-    
-    if [ ${#missing[@]} -gt 0 ]; then
-        echo "Instalando dependencias necesarias: ${missing[*]}"
+    # Primero verificar dialog que es esencial
+    if ! command -v dialog >/dev/null 2>&1; then
+        echo "Instalando dialog..."
         if command -v pikman >/dev/null 2>&1; then
-            for pkg in "${missing[@]}"; do
-                pikman install "$pkg"
-            done
+            pikman install dialog || true
         elif command -v apt >/dev/null 2>&1; then
-            sudo apt update && sudo apt install -y "${missing[@]}"
+            sudo apt update && sudo apt install -y dialog || true
         elif command -v pacman >/dev/null 2>&1; then
-            sudo pacman -Sy --noconfirm "${missing[@]}"
-        else
-            echo "No se pudieron instalar las dependencias. Por favor, instala: ${missing[*]}"
-            exit 1
+            sudo pacman -Sy --noconfirm dialog || true
+        fi
+        
+        if ! command -v dialog >/dev/null 2>&1; then
+            echo "ERROR: No se pudo instalar dialog. Las scripts funcionarán en modo básico."
+            return 1
         fi
     fi
+    
+    # Verificar pv para barras de progreso
+    if ! command -v pv >/dev/null 2>&1; then
+        if command -v dialog >/dev/null 2>&1; then
+            dialog --infobox "Instalando utilidad pv para barras de progreso..." 3 50
+            sleep 2
+        else
+            echo "Instalando utilidad pv para barras de progreso..."
+        fi
+        
+        if command -v pikman >/dev/null 2>&1; then
+            pikman install pv || true
+        elif command -v apt >/dev/null 2>&1; then
+            sudo apt update && sudo apt install -y pv || true
+        elif command -v pacman >/dev/null 2>&1; then
+            sudo pacman -Sy --noconfirm pv || true
+        fi
+        
+        if ! command -v pv >/dev/null 2>&1; then
+            if command -v dialog >/dev/null 2>&1; then
+                dialog --msgbox "No se pudo instalar pv. Las barras de progreso no estarán disponibles." 5 60
+            else
+                echo "AVISO: No se pudo instalar pv. Las barras de progreso no estarán disponibles."
+            fi
+        fi
+    fi
+    
+    return 0
 }
 
 # Mostrar barra de progreso para descargas
