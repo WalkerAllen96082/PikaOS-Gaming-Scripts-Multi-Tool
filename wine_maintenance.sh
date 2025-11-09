@@ -3,216 +3,292 @@
 # Obtener el directorio del script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 
+# Verificar dependencias críticas
+if [ ! -f "$SCRIPT_DIR/tui_utils.sh" ]; then
+    echo "Error: No se encuentra tui_utils.sh"
+    exit 1
+fi
+
 # Importar utilidades
 source "$SCRIPT_DIR/tui_utils.sh"
 source "$SCRIPT_DIR/00_config.sh" || log_message "WARNING" "00_config.sh no encontrado; usando valores por defecto"
+source "$SCRIPT_DIR/pkg_manager.sh"
 
+# Inicializar log
 WINE_MAINTENANCE_LOG="$LOG_DIR/wine_maintenance.log"
-touch "$WINE_MAINTENANCE_LOG" 2>/dev/null || true
+touch "$WINE_MAINTENANCE_LOG"
 
-# Función para listar prefijos Wine
-list_prefixes() {
-    local prefix_dirs=(
-        "$HOME/.local/share/wineprefixes"
-        "$HOME/.wine"
-        "$HOME/.local/share/heroic/prefixes"
-        "$HOME/.local/share/Steam/steamapps/compatdata"
+# Función para volver al menú principal
+return_to_main() {
+    if confirm "Menú Principal" "¿Deseas volver al menú principal?"; then
+        cleanup_tui
+        exec "$SCRIPT_DIR/gaming_tools.sh"
+    fi
+}
+
+# Función para reiniciar el script actual
+restart_script() {
+    if confirm "Reiniciar" "¿Deseas realizar otra operación en este menú?"; then
+        cleanup_tui
+        exec "$0"
+    fi
+}
+
+# Función para manejar el final de una operación
+handle_operation_end() {
+    local options=(
+        "1" "↩️ Realizar otra operación en este menú"
+        "2" "🏠 Volver al menú principal"
+        "3" "❌ Salir"
     )
     
-    # Crear array para el menú
-    local prefix_options=()
-    local option_num=1
-    declare -a prefix_paths=()
+    local choice=$(show_menu "¿Qué deseas hacer?" "Operación completada" "${options[@]}")
+    case $choice in
+        1)
+            cleanup_tui
+            exec "$0"
+            ;;
+        2)
+            cleanup_tui
+            exec "$SCRIPT_DIR/gaming_tools.sh"
+            ;;
+        3)
+            cleanup_tui
+            exit 0
+            ;;
+        *)
+            handle_operation_end
+            ;;
+    esac
+}
+
+# Función para listar prefijos de Wine
+list_wine_prefixes() {
+    local prefixes=()
+    local descriptions=()
+    local i=1
     
-    for dir in "${prefix_dirs[@]}"; do
-        if [ -d "$dir" ]; then
-            while IFS= read -r prefix; do
-                if [ -d "$prefix" ]; then
-                    prefix_paths+=("$prefix")
-                    prefix_options+=("$option_num")
-                    prefix_options+=("🍷 $(basename "$prefix") ($(dirname "$prefix"))")
-                    ((option_num++))
-                fi
-            done < <(find "$dir" -name "drive_c" -type d -exec dirname {} \;)
+    # Buscar en ubicaciones comunes
+    for prefix_dir in "$HOME/.wine" "$HOME/.local/share/wineprefixes/"*/ "$HOME/.local/share/wine/"*/; do
+        if [ -d "$prefix_dir" ] && [ -f "$prefix_dir/system.reg" ]; then
+            local name=$(basename "$prefix_dir")
+            prefixes+=("$prefix_dir")
+            descriptions+=("Prefijo: $name")
+            ((i++))
         fi
     done
     
-    # Si no hay prefijos, mostrar error
-    if [ ${#prefix_paths[@]} -eq 0 ]; then
-        show_error "Error" "No se encontraron prefijos Wine"
-        return 1
-    fi
-    
-    # Agregar opción para cancelar
-    prefix_options+=("$option_num" "❌ Cancelar")
-    
-    # Mostrar menú y obtener selección
-    local choice=$(show_menu "Prefijos Wine" "Selecciona un prefijo:" "${prefix_options[@]}")
-    
-    # Si se seleccionó cancelar o ESC
-    if [ "$choice" = "$option_num" ] || [ -z "$choice" ]; then
-        return 1
-    fi
-    
-    # Devolver el prefijo seleccionado
-    echo "${prefix_paths[$((choice-1))]}"
-    return 0
-}
-
-# Función para limpiar un prefijo
-clean_prefix() {
-    local prefix=$1
-    export WINEPREFIX="$prefix"
-    
-    log_message "INFO" "Iniciando limpieza del prefijo: $prefix" "$WINE_MAINTENANCE_LOG"
-    
-    show_progress "Limpiando archivos temporales..." "rm -rf \"$prefix/drive_c/windows/temp/\"* \"$prefix/drive_c/users/$USER/Temp/\"*"
-    
-    show_progress "Desfragmentando registro de Wine..." "wine regedit /s \"$prefix/system.reg\""
-    
-    log_message "SUCCESS" "Limpieza completada para: $prefix" "$WINE_MAINTENANCE_LOG"
-    show_success "Limpieza Completada" "El prefijo ha sido limpiado exitosamente:\n$prefix"
-    
-    return 0
+    echo "PREFIXES=${prefixes[*]}"
+    echo "DESCRIPTIONS=${descriptions[*]}"
 }
 
 # Función para hacer backup de un prefijo
 backup_prefix() {
-    local prefix=$1
-    local backup_dir="$HOME/.wine_backups"
+    local prefix="$1"
+    local backup_dir="$HOME/.local/share/wine-backups"
     mkdir -p "$backup_dir"
     
-    local backup_name="wine_prefix_$(date +%Y%m%d_%H%M%S).tar.gz"
+    local backup_name="wine-prefix-$(basename "$prefix")-$(date +%Y%m%d-%H%M%S).tar.gz"
     local backup_path="$backup_dir/$backup_name"
     
-    log_message "INFO" "Iniciando backup del prefijo: $prefix" "$WINE_MAINTENANCE_LOG"
-    
-    # Mostrar diálogo de progreso mientras se crea el backup
-    (
-        cd "$(dirname "$prefix")" || exit 1
-        tar czf "$backup_path" "$(basename "$prefix")"
-    ) 2>&1 | dialog --gauge "Creando backup del prefijo..." 10 70 0
+    show_progress "Creando backup..." "tar czf \"$backup_path\" -C \"$(dirname "$prefix")\" \"$(basename "$prefix")\""
     
     if [ -f "$backup_path" ]; then
-        log_message "SUCCESS" "Backup creado en: $backup_path" "$WINE_MAINTENANCE_LOG"
-        show_success "Backup Completado" "El backup ha sido creado exitosamente en:\n$backup_path"
+        show_success "Backup Completado" "Backup guardado en:\n$backup_path"
+        log_message "SUCCESS" "Backup creado: $backup_path" "$WINE_MAINTENANCE_LOG"
     else
-        log_message "ERROR" "Error al crear backup en: $backup_path" "$WINE_MAINTENANCE_LOG"
-        show_error "Error" "No se pudo crear el backup del prefijo"
-        return 1
+        show_error "Error" "No se pudo crear el backup"
+        log_message "ERROR" "Fallo al crear backup de $prefix" "$WINE_MAINTENANCE_LOG"
     fi
     
-    return 0
+    handle_operation_end
 }
 
-# Función para instalar componentes comunes de Wine
-install_components() {
-    local prefix=$1
-    export WINEPREFIX="$prefix"
+# Función para restaurar backup
+restore_prefix() {
+    local backup_dir="$HOME/.local/share/wine-backups"
+    if [ ! -d "$backup_dir" ]; then
+        show_error "Error" "No se encontraron backups"
+        handle_operation_end
+        return
+    fi
     
-    log_message "INFO" "Iniciando instalación de componentes en: $prefix" "$WINE_MAINTENANCE_LOG"
+    # Crear lista de backups disponibles
+    local backups=()
+    local i=1
+    while IFS= read -r backup; do
+        backups+=("$i" "📦 $(basename "$backup")")
+        ((i++))
+    done < <(ls -1 "$backup_dir"/*.tar.gz 2>/dev/null)
     
-    # Lista de componentes a instalar
-    local components=(
-        "vcrun2019:Visual C++ 2019 Runtime"
-        "d3dx9:DirectX 9"
-        "xact:XACT Audio"
-        "dxvk:DXVK (DirectX sobre Vulkan)"
-    )
+    if [ ${#backups[@]} -eq 0 ]; then
+        show_error "Error" "No hay backups disponibles"
+        handle_operation_end
+        return
+    fi
     
-    # Crear menú de selección múltiple
+    backups+=("$i" "⬅️ Volver")
+    
+    local choice=$(show_menu "Restaurar Backup" "Selecciona un backup:" "${backups[@]}")
+    
+    if [ "$choice" != "$i" ] && [ -n "$choice" ]; then
+        local selected_backup="$backup_dir/$(basename "${backups[$(((choice-1)*2+1))]}")"
+        local restore_dir="$HOME/.local/share/wineprefixes"
+        
+        if confirm "Restaurar" "¿Estás seguro de restaurar este backup?\nSe sobrescribirá el prefijo existente si ya existe."; then
+            mkdir -p "$restore_dir"
+            show_progress "Restaurando backup..." "tar xzf \"$selected_backup\" -C \"$restore_dir\""
+            show_success "Éxito" "Backup restaurado correctamente"
+            log_message "SUCCESS" "Backup restaurado: $selected_backup" "$WINE_MAINTENANCE_LOG"
+        fi
+    fi
+    
+    handle_operation_end
+}
+
+# Función para limpiar un prefijo
+clean_prefix() {
+    # Obtener lista de prefijos
+    eval "$(list_wine_prefixes)"
+    
+    if [ ${#PREFIXES[@]} -eq 0 ]; then
+        show_error "Error" "No se encontraron prefijos de Wine"
+        handle_operation_end
+        return
+    fi
+    
+    # Crear opciones de menú
     local options=()
     local i=1
-    for comp in "${components[@]}"; do
-        IFS=':' read -r id desc <<< "$comp"
-        options+=("$i" "$desc" "on")
+    for prefix in "${PREFIXES[@]}"; do
+        options+=("$i" "🗑️ $(basename "$prefix")")
         ((i++))
     done
+    options+=("$i" "⬅️ Volver")
     
-    # Mostrar menú de selección
-    local selected
-    exec 3>&1
-    selected=$(dialog --title "Instalación de Componentes" \
-                     --checklist "Selecciona los componentes a instalar:" \
-                     15 60 8 \
-                     "${options[@]}" \
-                     2>&1 1>&3)
-    local result=$?
-    exec 3>&-
+    local choice=$(show_menu "Limpiar Prefijo" "Selecciona un prefijo:" "${options[@]}")
     
-    # Si se canceló la selección
-    if [ $result -ne 0 ]; then
-        return 1
+    if [ "$choice" != "$i" ] && [ -n "$choice" ]; then
+        local selected_prefix="${PREFIXES[$((choice-1))]}"
+        
+        if confirm "Limpiar" "¿Estás seguro de limpiar este prefijo?\nSe eliminarán archivos temporales y caché."; then
+            show_progress "Limpiando prefijo..." "rm -rf \"$selected_prefix/drive_c/users/*/Temp/*\" \"$selected_prefix/drive_c/users/*/AppData/Local/Temp/*\""
+            show_success "Éxito" "Prefijo limpiado correctamente"
+            log_message "SUCCESS" "Prefijo limpiado: $selected_prefix" "$WINE_MAINTENANCE_LOG"
+        fi
     fi
     
-    # Instalar componentes seleccionados
-    for choice in $selected; do
-        local comp_id=$(echo "${components[$((choice-1))]}" | cut -d: -f1)
-        show_progress "Instalando $comp_id..." "winetricks -q $comp_id"
-        log_message "INFO" "Componente instalado: $comp_id" "$WINE_MAINTENANCE_LOG"
-    done
-    
-    show_success "Instalación Completada" "Los componentes seleccionados han sido instalados en:\n$prefix"
-    log_message "SUCCESS" "Instalación de componentes completada en: $prefix" "$WINE_MAINTENANCE_LOG"
-    
-    return 0
+    handle_operation_end
 }
 
-# Función principal
-main() {
-    # Inicializar TUI
-    init_tui
+# Función para instalar componentes
+install_components() {
+    local component_options=(
+        "1" "📦 vcrun2015"
+        "2" "📦 d3dx9"
+        "3" "📦 xact"
+        "4" "📦 corefonts"
+        "5" "⬅️ Volver"
+    )
     
-    # Log de inicio
-    log_message "INFO" "Iniciando herramienta de mantenimiento de Wine" "$WINE_MAINTENANCE_LOG"
+    local choice=$(show_menu "Componentes de Wine" "Selecciona un componente:" "${component_options[@]}")
     
-    # Menú principal
+    case $choice in
+        1|2|3|4)
+            eval "$(list_wine_prefixes)"
+            if [ ${#PREFIXES[@]} -eq 0 ]; then
+                show_error "Error" "No se encontraron prefijos de Wine"
+                handle_operation_end
+                return
+            fi
+            
+            local prefix_options=()
+            local i=1
+            for prefix in "${PREFIXES[@]}"; do
+                prefix_options+=("$i" "🍷 $(basename "$prefix")")
+                ((i++))
+            done
+            prefix_options+=("$i" "⬅️ Volver")
+            
+            local prefix_choice=$(show_menu "Seleccionar Prefijo" "¿En qué prefijo quieres instalar?" "${prefix_options[@]}")
+            
+            if [ "$prefix_choice" != "$i" ] && [ -n "$prefix_choice" ]; then
+                local selected_prefix="${PREFIXES[$((prefix_choice-1))]}"
+                local component
+                case $choice in
+                    1) component="vcrun2015";;
+                    2) component="d3dx9";;
+                    3) component="xact";;
+                    4) component="corefonts";;
+                esac
+                
+                show_progress "Instalando $component..." "WINEPREFIX=\"$selected_prefix\" winetricks $component"
+                show_success "Éxito" "$component instalado correctamente"
+                log_message "SUCCESS" "Componente $component instalado en $selected_prefix" "$WINE_MAINTENANCE_LOG"
+            fi
+            ;;
+        5|"")
+            return
+            ;;
+    esac
+    
+    handle_operation_end
+}
+
+# Función principal del menú
+main_menu() {
     while true; do
-        local main_options=(
-            "1" "🧹 Limpiar prefijo Wine"
-            "2" "💾 Hacer backup de prefijo"
-            "3" "🔧 Instalar componentes"
-            "4" "📋 Ver logs"
-            "5" "❌ Salir"
+        local options=(
+            "1" "💾 Backup de Prefijo"
+            "2" "📥 Restaurar Backup"
+            "3" "🧹 Limpiar Prefijo"
+            "4" "📦 Instalar Componentes"
+            "5" "📋 Ver Logs"
+            "6" "🏠 Volver al Menú Principal"
+            "7" "❌ Salir"
         )
         
-        local choice=$(show_menu "Mantenimiento de Wine" "Selecciona una operación:" "${main_options[@]}")
+        local choice=$(show_menu "Mantenimiento de Wine" "Selecciona una opción:" "${options[@]}")
         
         case $choice in
-            1)  # Limpiar prefijo
-                local prefix
-                if prefix=$(list_prefixes); then
-                    if [ -d "$prefix" ]; then
-                        clean_prefix "$prefix"
-                    else
-                        show_error "Error" "El prefijo seleccionado no existe:\n$prefix"
+            1)
+                eval "$(list_wine_prefixes)"
+                if [ ${#PREFIXES[@]} -eq 0 ]; then
+                    show_error "Error" "No se encontraron prefijos de Wine"
+                    handle_operation_end
+                else
+                    local prefix_options=()
+                    local i=1
+                    for prefix in "${PREFIXES[@]}"; do
+                        prefix_options+=("$i" "🍷 $(basename "$prefix")")
+                        ((i++))
+                    done
+                    prefix_options+=("$i" "⬅️ Volver")
+                    
+                    local backup_choice=$(show_menu "Backup de Prefijo" "Selecciona un prefijo:" "${prefix_options[@]}")
+                    
+                    if [ "$backup_choice" != "$i" ] && [ -n "$backup_choice" ]; then
+                        backup_prefix "${PREFIXES[$((backup_choice-1))]}"
                     fi
                 fi
                 ;;
-            2)  # Backup
-                local prefix
-                if prefix=$(list_prefixes); then
-                    if [ -d "$prefix" ]; then
-                        backup_prefix "$prefix"
-                    else
-                        show_error "Error" "El prefijo seleccionado no existe:\n$prefix"
-                    fi
-                fi
+            2)
+                restore_prefix
                 ;;
-            3)  # Instalar componentes
-                local prefix
-                if prefix=$(list_prefixes); then
-                    if [ -d "$prefix" ]; then
-                        install_components "$prefix"
-                    else
-                        show_error "Error" "El prefijo seleccionado no existe:\n$prefix"
-                    fi
-                fi
+            3)
+                clean_prefix
                 ;;
-            4)  # Ver logs
+            4)
+                install_components
+                ;;
+            5)
                 view_logs
                 ;;
-            5|"")  # Salir
+            6)
+                cleanup_tui
+                exec "$SCRIPT_DIR/gaming_tools.sh"
+                ;;
+            7|"")
                 cleanup_tui
                 exit 0
                 ;;
@@ -220,7 +296,8 @@ main() {
     done
 }
 
-# Ejecutar programa si no es sourced
+# Punto de entrada principal
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    main
+    init_tui
+    main_menu
 fi
